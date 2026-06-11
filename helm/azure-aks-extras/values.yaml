@@ -1,12 +1,31 @@
-# This file is a Helm values file for the azure-aks-extras chart.
-#
-# To learn more about how to configure your app on your cluster
-# and override the default values in here, visit:
-#
-#   https://docs.giantswarm.io/tutorials/fleet-management/app-platform/app-configuration/#basic-values-merging-example
-#
-image:
-  name: "giantswarm/azure-aks-extras"
-  tag: ""
-registry:
-  domain: gsoci.azurecr.io
+coredns:
+  configmap:
+    # Uncomment "autopath" to enable DNS autopath https://coredns.io/plugins/autopath/
+    # autopath: "@kubernetes"
+    custom: ""
+    log: |
+      denial
+      error
+
+    # Uncomment and define `forward` to enable and configure forwarding rules for CoreDNS forward plugin (for syntax see https://coredns.io/plugins/forward/)
+    # forward: . 192.168.1.1 /etc/resolv.conf
+    # forwardOptions: |
+    #   policy random
+
+  ports:
+    dns:
+      targetPort: 1053
+    prometheus: 9153
+
+  cluster:
+    calico:
+      CIDR: 192.168.0.0/16
+    kubernetes:
+      API:
+        clusterIPRange: 172.31.0.0/16
+      clusterDomain: cluster.local
+
+  loadbalancePolicy: round_robin
+
+  # Uncomment and define `additionalLocalZones` to add additional local zones to CoreDNS config
+  # additionalLocalZones: []

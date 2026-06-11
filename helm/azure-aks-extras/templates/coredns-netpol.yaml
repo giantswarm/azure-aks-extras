@@ -1,0 +1,31 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: coredns
+  namespace: kube-system
+spec:
+  podSelector:
+    matchExpressions:
+      - key: k8s-app
+        operator: In
+        values:
+          - kube-dns
+          - coredns-autoscaler
+  ingress:
+    - ports:
+        - port: 1053
+          protocol: UDP
+        - port: 1053
+          protocol: TCP
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - ports:
+        - port: 9153
+          protocol: TCP
+  egress:
+    - {}
+  policyTypes:
+    - Egress
+    - Ingress
