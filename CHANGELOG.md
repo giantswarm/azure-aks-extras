@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- changed: `app.giantswarm.io` label group was changed to `application.giantswarm.io`
+### Added
+
+- Add coredns and metrics-server configuration resources.
 
 [Unreleased]: https://github.com/giantswarm/azure-aks-extras/tree/main

@@ -1,0 +1,109 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+data:
+  this.server: |
+    .:{{ .Values.coredns.ports.dns.targetPort }} {
+        cache
+        errors
+        template ANY AAAA {
+          rcode NOERROR
+        }
+        health :8080 {
+          lameduck 5s
+        }
+        ready :8181
+        log . {
+          {{- range (.Values.coredns.configmap.log | trimAll "\n " |  split "\n") }}
+          class {{ . }}
+          {{- end }}
+        }
+        loadbalance {{ .Values.coredns.loadbalancePolicy }}
+        prometheus :{{ .Values.coredns.ports.prometheus }}
+
+        {{- if and .Values.coredns.configmap.forward .Values.coredns.configmap.forwardOptions }}
+        forward {{- range (.Values.coredns.configmap.forward | trimAll "\n " | splitList "\n") }} {{ . }} {{- end }} {
+          {{ .Values.coredns.configmap.forwardOptions | trimSuffix "\n" }}
+        }
+        {{- else if .Values.coredns.configmap.forward }}
+        forward {{- range (.Values.coredns.configmap.forward | trimAll "\n " | splitList "\n") }} {{ . }} {{- end }}
+        {{- else }}
+        forward . /etc/resolv.conf
+        {{- end }}
+        reload
+        {{- if .Values.coredns.configmap.autopath }}
+        autopath {{ .Values.coredns.configmap.autopath }}
+        {{- end }}
+    }
+
+    {{- $domains := split " " .Values.coredns.cluster.kubernetes.clusterDomain }}
+    {{- $dnsPort := .Values.coredns.ports.dns.targetPort }}
+    {{- $clusterIPRange := .Values.coredns.cluster.kubernetes.API.clusterIPRange }}
+    {{- $calicoCIDR:= .Values.coredns.cluster.calico.CIDR }}
+    {{- $loadbalancePolicy := .Values.coredns.loadbalancePolicy }}
+    {{- $prometheus := .Values.coredns.ports.prometheus }}
+    {{- $customLog := .Values.coredns.configmap.log }}
+    {{- $additionalLocalZones := .Values.coredns.additionalLocalZones -}}
+    {{- range $index, $domain := $domains }}
+    {{- if not (has $domain $additionalLocalZones) }}
+    {{ $domain }}:{{ $dnsPort }} {{- if (regexMatch ".local$" $domain ) }} {{ $clusterIPRange }}:{{ $dnsPort }} {{ $calicoCIDR }}:{{ $dnsPort }} {{- end }} {
+        errors
+        template ANY AAAA {
+          rcode NOERROR
+        }
+        cache
+        health :8080 {
+          lameduck 5s
+        }
+        ready :8181
+        kubernetes {{ $domain }} {{- if (regexMatch ".local$" $domain ) }} {{ $clusterIPRange }} {{ $calicoCIDR }} {{- end }} {
+          pods verified
+        }
+        log . {
+          {{- range ($customLog | trimAll "\n " |  split "\n") }}
+          class {{ . }}
+          {{- end }}
+        }
+        loadbalance {{ $loadbalancePolicy }}
+        prometheus :{{ $prometheus }}
+        reload
+    }
+    {{- end }}
+    {{- end }}
+
+    {{- if .Values.coredns.additionalLocalZones }}
+    {{- range $index, $domain := .Values.coredns.additionalLocalZones }}
+    {{- if not (eq $domain "") }}
+    {{ $domain }}:{{ $dnsPort }} {
+        errors
+        template ANY AAAA {
+          rcode NOERROR
+        }
+        cache
+        health :8080 {
+          lameduck 5s
+        }
+        ready :8181
+        kubernetes {{ $domain }} {
+          pods verified
+        }
+        log . {
+          {{- range ($customLog | trimAll "\n " |  split "\n") }}
+          class {{ . }}
+          {{- end }}
+        }
+        loadbalance {{ $loadbalancePolicy }}
+        prometheus :{{ $prometheus }}
+        reload
+    }
+    {{- end }}
+    {{- end }}
+    {{- end }}
+
+    {{- if .Values.coredns.configmap.custom }}
+    {{- range (.Values.coredns.configmap.custom | trimAll "\n " |  splitList "\n") }}
+    {{ . }}
+    {{- end }}
+    {{- end }}
